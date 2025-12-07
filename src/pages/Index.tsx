@@ -1,55 +1,108 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import Icon from "@/components/ui/icon";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [completedLessons, setCompletedLessons] = useState(2);
+  const [lessons, setLessons] = useState<any[]>([]);
+  const [gallery, setGallery] = useState<any[]>([]);
+  const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [uploadTitle, setUploadTitle] = useState("");
+  const [uploadDescription, setUploadDescription] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  
   const totalLessons = 12;
   const progressPercent = (completedLessons / totalLessons) * 100;
 
-  const lessons = [
-    {
-      id: 1,
-      title: "Основы пропорций лица",
-      description: "Научитесь правильно размещать черты лица",
-      duration: "15 мин",
-      difficulty: "Начальный",
-      icon: "Ruler",
-      completed: true
-    },
-    {
-      id: 2,
-      title: "Рисуем глаза",
-      description: "Пошаговая инструкция по рисованию реалистичных глаз",
-      duration: "25 мин",
-      difficulty: "Средний",
-      icon: "Eye",
-      completed: true
-    },
-    {
-      id: 3,
-      title: "Техника рисования носа",
-      description: "Изучаем анатомию и светотень носа",
-      duration: "20 мин",
-      difficulty: "Средний",
-      icon: "Wind",
-      completed: false
-    },
-    {
-      id: 4,
-      title: "Губы и рот",
-      description: "Создаём объём и выразительность",
-      duration: "30 мин",
-      difficulty: "Средний",
-      icon: "Smile",
-      completed: false
+  useEffect(() => {
+    fetch('https://functions.poehali.dev/93feccd4-0642-4834-8aef-d137b6476758')
+      .then(res => res.json())
+      .then(data => {
+        const formattedLessons = data.map((lesson: any) => ({
+          id: lesson.id,
+          title: lesson.title,
+          description: lesson.description,
+          duration: `${lesson.duration} мин`,
+          difficulty: lesson.difficulty,
+          icon: lesson.icon,
+          completed: false
+        }));
+        setLessons(formattedLessons);
+      })
+      .catch(err => console.error('Error loading lessons:', err));
+
+    loadGallery();
+  }, []);
+
+  const loadGallery = () => {
+    fetch('https://functions.poehali.dev/d1439467-0fbd-47d5-9496-bae1cd615868')
+      .then(res => res.json())
+      .then(data => setGallery(data))
+      .catch(err => console.error('Error loading gallery:', err));
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      setSelectedFile(e.target.files[0]);
     }
-  ];
+  };
+
+  const handleUpload = async () => {
+    if (!selectedFile) {
+      toast({ title: "Ошибка", description: "Выберите файл для загрузки", variant: "destructive" });
+      return;
+    }
+
+    setUploading(true);
+
+    try {
+      const reader = new FileReader();
+      reader.readAsDataURL(selectedFile);
+      reader.onload = async () => {
+        const base64 = reader.result?.toString().split(',')[1];
+        
+        const response = await fetch('https://functions.poehali.dev/d1439467-0fbd-47d5-9496-bae1cd615868', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            user_id: 1,
+            title: uploadTitle || 'Без названия',
+            description: uploadDescription,
+            image: base64
+          })
+        });
+
+        if (response.ok) {
+          toast({ title: "Успех!", description: "Работа добавлена в галерею" });
+          setUploadDialogOpen(false);
+          setUploadTitle("");
+          setUploadDescription("");
+          setSelectedFile(null);
+          loadGallery();
+        } else {
+          toast({ title: "Ошибка", description: "Не удалось загрузить изображение", variant: "destructive" });
+        }
+      };
+    } catch (error) {
+      toast({ title: "Ошибка", description: "Произошла ошибка при загрузке", variant: "destructive" });
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const exercises = [
     {
@@ -75,12 +128,7 @@ const Index = () => {
     }
   ];
 
-  const gallery = [
-    { id: 1, author: "Анна М.", likes: 234, comments: 12, level: "Новичок" },
-    { id: 2, author: "Иван К.", likes: 189, comments: 8, level: "Продвинутый" },
-    { id: 3, author: "Мария С.", likes: 312, comments: 24, level: "Средний" },
-    { id: 4, author: "Алексей П.", likes: 156, comments: 7, level: "Новичок" }
-  ];
+
 
   const achievements = [
     { id: 1, name: "Первый урок", icon: "Award", unlocked: true },
@@ -216,7 +264,11 @@ const Index = () => {
                         </span>
                         <Badge variant="outline">{lesson.difficulty}</Badge>
                       </div>
-                      <Button size="sm" variant={lesson.completed ? "outline" : "default"}>
+                      <Button 
+                        size="sm" 
+                        variant={lesson.completed ? "outline" : "default"}
+                        onClick={() => navigate(`/lesson/${lesson.id}`)}
+                      >
                         {lesson.completed ? "Повторить" : "Начать"}
                         <Icon name="ArrowRight" size={16} className="ml-2" />
                       </Button>
@@ -257,43 +309,110 @@ const Index = () => {
           </TabsContent>
 
           <TabsContent value="gallery" className="mt-6">
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {gallery.map((item, index) => (
-                <Card
-                  key={item.id}
-                  className="hover:shadow-xl transition-all hover:-translate-y-1 animate-scale-in overflow-hidden"
-                  style={{ animationDelay: `${index * 100}ms` }}
-                >
-                  <div className="aspect-square bg-gradient-to-br from-purple-100 via-orange-50 to-blue-100 flex items-center justify-center">
-                    <Icon name="Image" size={48} className="text-muted-foreground/30" />
+            <div className="mb-6 flex justify-end">
+              <Dialog open={uploadDialogOpen} onOpenChange={setUploadDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Icon name="Upload" size={18} className="mr-2" />
+                    Добавить работу
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle className="font-heading">Загрузить работу</DialogTitle>
+                    <DialogDescription>
+                      Поделитесь своим рисунком с сообществом
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div>
+                      <Label htmlFor="title">Название</Label>
+                      <Input
+                        id="title"
+                        value={uploadTitle}
+                        onChange={(e) => setUploadTitle(e.target.value)}
+                        placeholder="Название работы"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="description">Описание</Label>
+                      <Textarea
+                        id="description"
+                        value={uploadDescription}
+                        onChange={(e) => setUploadDescription(e.target.value)}
+                        placeholder="Расскажите о вашей работе"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="file">Изображение</Label>
+                      <Input
+                        id="file"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleFileSelect}
+                      />
+                    </div>
+                    <Button 
+                      className="w-full" 
+                      onClick={handleUpload}
+                      disabled={uploading}
+                    >
+                      {uploading ? "Загрузка..." : "Загрузить"}
+                    </Button>
                   </div>
-                  <CardContent className="pt-4">
-                    <div className="flex items-center gap-3 mb-3">
-                      <Avatar className="w-8 h-8 bg-gradient-to-br from-primary to-secondary">
-                        <AvatarFallback className="text-white text-xs">
-                          {item.author.charAt(0)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">{item.author}</p>
-                        <Badge variant="secondary" className="text-xs">
-                          {item.level}
-                        </Badge>
+                </DialogContent>
+              </Dialog>
+            </div>
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {gallery.length === 0 ? (
+                <div className="col-span-full text-center py-12">
+                  <Icon name="Image" size={48} className="text-muted-foreground/30 mx-auto mb-4" />
+                  <p className="text-muted-foreground">Галерея пока пуста. Добавьте первую работу!</p>
+                </div>
+              ) : (
+                gallery.map((item, index) => (
+                  <Card
+                    key={item.id}
+                    className="hover:shadow-xl transition-all hover:-translate-y-1 animate-scale-in overflow-hidden"
+                    style={{ animationDelay: `${index * 100}ms` }}
+                  >
+                    {item.image_url ? (
+                      <div className="aspect-square overflow-hidden">
+                        <img src={item.image_url} alt={item.title} className="w-full h-full object-cover" />
                       </div>
-                    </div>
-                    <div className="flex items-center justify-between text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <Icon name="Heart" size={16} />
-                        {item.likes}
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <Icon name="MessageCircle" size={16} />
-                        {item.comments}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    ) : (
+                      <div className="aspect-square bg-gradient-to-br from-purple-100 via-orange-50 to-blue-100 flex items-center justify-center">
+                        <Icon name="Image" size={48} className="text-muted-foreground/30" />
+                      </div>
+                    )}
+                    <CardContent className="pt-4">
+                      <div className="flex items-center gap-3 mb-3">
+                        <Avatar className="w-8 h-8 bg-gradient-to-br from-primary to-secondary">
+                          <AvatarFallback className="text-white text-xs">
+                            {item.author?.charAt(0) || 'U'}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">{item.author || 'Пользователь'}</p>
+                          <Badge variant="secondary" className="text-xs">
+                            {item.level || 'Новичок'}
+                          </Badge>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Icon name="Heart" size={16} />
+                          {item.likes || 0}
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Icon name="MessageCircle" size={16} />
+                          {item.comments || 0}
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))
+              )}
             </div>
           </TabsContent>
         </Tabs>
@@ -308,7 +427,7 @@ const Index = () => {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button className="w-full" variant="outline">
+              <Button className="w-full" variant="outline" onClick={() => setUploadDialogOpen(true)}>
                 <Icon name="Upload" size={18} className="mr-2" />
                 Поделиться работой
               </Button>

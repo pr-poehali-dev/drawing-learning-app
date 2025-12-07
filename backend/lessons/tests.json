@@ -1,0 +1,30 @@
+{
+  "tests": [
+    {
+      "name": "Get all lessons",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": {
+        "0": {
+          "id": "number",
+          "title": "string",
+          "difficulty": "string"
+        }
+      },
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Get lesson by ID",
+      "method": "GET",
+      "path": "/?id=1",
+      "expectedStatus": 200,
+      "expectedBody": {
+        "id": "number",
+        "title": "string",
+        "content": "string"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

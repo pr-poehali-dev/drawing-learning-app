@@ -1,0 +1,20 @@
+{
+  "tests": [
+    {
+      "name": "Create new user",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "username": "testuser",
+        "email": "test@example.com"
+      },
+      "expectedStatus": 201,
+      "expectedBody": {
+        "id": "number",
+        "username": "string",
+        "level": "string"
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
