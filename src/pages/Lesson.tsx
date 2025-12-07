@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import Icon from "@/components/ui/icon";
+import { useToast } from "@/hooks/use-toast";
+import { getCurrentUser } from "@/lib/auth";
 
 interface Lesson {
   id: number;
@@ -20,9 +22,54 @@ interface Lesson {
 const Lesson = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [lesson, setLesson] = useState<Lesson | null>(null);
   const [loading, setLoading] = useState(true);
   const [progress, setProgress] = useState(0);
+  const [completed, setCompleted] = useState(false);
+
+  const handleComplete = async () => {
+    const user = getCurrentUser();
+    if (!user) {
+      toast({ title: "Ошибка", description: "Войдите в систему", variant: "destructive" });
+      return;
+    }
+
+    if (!lesson) return;
+
+    try {
+      const response = await fetch('https://functions.poehali.dev/38a6e764-3373-4fa7-8067-5c764e8c0904', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: user.id,
+          lesson_id: lesson.id,
+          rating: 5
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setCompleted(true);
+        
+        toast({
+          title: "Урок завершён! 🎉",
+          description: `Вы получили ${result.xp_earned} XP`
+        });
+
+        if (result.new_achievements && result.new_achievements.length > 0) {
+          result.new_achievements.forEach((ach: any) => {
+            toast({ title: `🏆 Достижение!`, description: ach.name });
+          });
+        }
+
+        setTimeout(() => navigate('/'), 2000);
+      }
+    } catch (error) {
+      console.error('Error completing lesson:', error);
+      toast({ title: "Ошибка", description: "Не удалось сохранить прогресс", variant: "destructive" });
+    }
+  };
 
   useEffect(() => {
     const fetchLesson = async () => {
@@ -183,13 +230,18 @@ const Lesson = () => {
         </div>
 
         <div className="flex gap-4">
-          <Button size="lg" className="flex-1" onClick={() => navigate('/')}>
+          <Button 
+            size="lg" 
+            className="flex-1" 
+            onClick={handleComplete}
+            disabled={completed}
+          >
             <Icon name="CheckCircle" size={20} className="mr-2" />
-            Завершить урок
+            {completed ? 'Урок завершён' : 'Завершить урок'}
           </Button>
           <Button size="lg" variant="outline" onClick={() => navigate('/')}>
-            <Icon name="Repeat" size={20} className="mr-2" />
-            Начать заново
+            <Icon name="Home" size={20} className="mr-2" />
+            На главную
           </Button>
         </div>
       </main>

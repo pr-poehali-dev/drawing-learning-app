@@ -12,13 +12,19 @@ import { Textarea } from "@/components/ui/textarea";
 import Icon from "@/components/ui/icon";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
+import AuthDialog from "@/components/AuthDialog";
+import { getCurrentUser, isAuthenticated } from "@/lib/auth";
 
 const Index = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const [user, setUser] = useState(getCurrentUser());
+  const [authDialogOpen, setAuthDialogOpen] = useState(false);
   const [completedLessons, setCompletedLessons] = useState(2);
   const [lessons, setLessons] = useState<any[]>([]);
+  const [exercises, setExercises] = useState<any[]>([]);
   const [gallery, setGallery] = useState<any[]>([]);
+  const [achievements, setAchievements] = useState<any[]>([]);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [uploadTitle, setUploadTitle] = useState("");
   const [uploadDescription, setUploadDescription] = useState("");
@@ -29,6 +35,10 @@ const Index = () => {
   const progressPercent = (completedLessons / totalLessons) * 100;
 
   useEffect(() => {
+    if (!isAuthenticated()) {
+      setAuthDialogOpen(true);
+    }
+
     fetch('https://functions.poehali.dev/93feccd4-0642-4834-8aef-d137b6476758')
       .then(res => res.json())
       .then(data => {
@@ -45,8 +55,37 @@ const Index = () => {
       })
       .catch(err => console.error('Error loading lessons:', err));
 
+    fetch('https://functions.poehali.dev/d0645bed-f351-4ea9-9d98-dded219384b0')
+      .then(res => res.json())
+      .then(data => {
+        const formattedExercises = data.map((ex: any) => ({
+          id: ex.id,
+          title: ex.title,
+          time: `${ex.time_minutes} мин`,
+          points: ex.points,
+          icon: ex.icon
+        }));
+        setExercises(formattedExercises);
+      })
+      .catch(err => console.error('Error loading exercises:', err));
+
+    if (user) {
+      fetch(`https://functions.poehali.dev/38a6e764-3373-4fa7-8067-5c764e8c0904?user_id=${user.id}&action=achievements`)
+        .then(res => res.json())
+        .then(data => {
+          const formattedAch = data.map((a: any) => ({
+            id: a.id,
+            name: a.name,
+            icon: a.icon,
+            unlocked: a.unlocked
+          }));
+          setAchievements(formattedAch);
+        })
+        .catch(err => console.error('Error loading achievements:', err));
+    }
+
     loadGallery();
-  }, []);
+  }, [user]);
 
   const loadGallery = () => {
     fetch('https://functions.poehali.dev/d1439467-0fbd-47d5-9496-bae1cd615868')
@@ -79,7 +118,7 @@ const Index = () => {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            user_id: 1,
+            user_id: user?.id || 1,
             title: uploadTitle || 'Без названия',
             description: uploadDescription,
             image: base64
@@ -104,38 +143,11 @@ const Index = () => {
     }
   };
 
-  const exercises = [
-    {
-      id: 1,
-      title: "Быстрый скетч портрета",
-      time: "5 мин",
-      points: 50,
-      icon: "Timer"
-    },
-    {
-      id: 2,
-      title: "Практика пропорций",
-      time: "10 мин",
-      points: 100,
-      icon: "Target"
-    },
-    {
-      id: 3,
-      title: "Светотень",
-      time: "15 мин",
-      points: 150,
-      icon: "Sun"
-    }
-  ];
 
 
 
-  const achievements = [
-    { id: 1, name: "Первый урок", icon: "Award", unlocked: true },
-    { id: 2, name: "Неделя практики", icon: "Calendar", unlocked: true },
-    { id: 3, name: "Мастер глаз", icon: "Eye", unlocked: false },
-    { id: 4, name: "100 скетчей", icon: "Sparkles", unlocked: false }
-  ];
+
+
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-purple-50/30 to-orange-50/20">
@@ -301,7 +313,9 @@ const Index = () => {
                       <Icon name="Timer" size={18} />
                       <span>{exercise.time}</span>
                     </div>
-                    <Button className="w-full">Начать упражнение</Button>
+                    <Button className="w-full" onClick={() => navigate(`/exercise/${exercise.id}`)}>
+                      Начать упражнение
+                    </Button>
                   </CardContent>
                 </Card>
               ))}
@@ -473,6 +487,15 @@ const Index = () => {
           <p className="font-heading">Создано с ❤️ для художников</p>
         </div>
       </footer>
+
+      <AuthDialog 
+        open={authDialogOpen} 
+        onOpenChange={setAuthDialogOpen}
+        onSuccess={() => {
+          setUser(getCurrentUser());
+          setAuthDialogOpen(false);
+        }}
+      />
     </div>
   );
 };

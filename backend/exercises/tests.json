@@ -1,0 +1,18 @@
+{
+  "tests": [
+    {
+      "name": "Get all exercises",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": {
+        "0": {
+          "id": "number",
+          "title": "string",
+          "points": "number"
+        }
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}
